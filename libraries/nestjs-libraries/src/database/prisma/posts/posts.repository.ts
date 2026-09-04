@@ -24,8 +24,156 @@ export class PostsRepository {
     private _comments: PrismaRepository<'comments'>,
     private _tags: PrismaRepository<'tags'>,
     private _tagsPosts: PrismaRepository<'tagsPosts'>,
-    private _errors: PrismaRepository<'errors'>
+    private _errors: PrismaRepository<'errors'>,
+    private _facebookGroupQueue: PrismaRepository<'facebookGroupQueue'>
   ) {}
+
+  private _postOverviewSelect = {
+    id: true,
+    content: true,
+    publishDate: true,
+    releaseURL: true,
+    state: true,
+    group: true,
+    image: true,
+    error: true,
+    generatedByAi: true,
+    createdAt: true,
+    integration: {
+      select: {
+        id: true,
+        providerIdentifier: true,
+        name: true,
+        picture: true,
+      },
+    },
+  } as const;
+
+  private _buildOverviewWhere(
+    orgId: string,
+    query: {
+      channel?: string;
+      from?: string;
+      to?: string;
+      search?: string;
+    }
+  ) {
+    return {
+      organizationId: orgId,
+      deletedAt: null as Date | null,
+      ...(query.channel ? { integrationId: query.channel } : {}),
+      ...(query.search
+        ? {
+            content: {
+              contains: query.search,
+              mode: 'insensitive' as const,
+            },
+          }
+        : {}),
+    };
+  }
+
+  async getScheduledPosts(
+    orgId: string,
+    query: { channel?: string; from?: string; to?: string; search?: string }
+  ) {
+    return this._post.model.post.findMany({
+      where: {
+        ...this._buildOverviewWhere(orgId, query),
+        state: 'QUEUE',
+        publishDate: {
+          gt: new Date(),
+          ...(query.from ? { gte: dayjs(query.from).toDate() } : {}),
+          ...(query.to ? { lte: dayjs(query.to).toDate() } : {}),
+        },
+      },
+      select: this._postOverviewSelect,
+      orderBy: {
+        publishDate: 'asc',
+      },
+    });
+  }
+
+  async getPublishedPosts(
+    orgId: string,
+    query: { channel?: string; from?: string; to?: string; search?: string }
+  ) {
+    return this._post.model.post.findMany({
+      where: {
+        ...this._buildOverviewWhere(orgId, query),
+        state: 'PUBLISHED',
+        ...(query.from || query.to
+          ? {
+              publishDate: {
+                ...(query.from ? { gte: dayjs(query.from).toDate() } : {}),
+                ...(query.to ? { lte: dayjs(query.to).toDate() } : {}),
+              },
+            }
+          : {}),
+      },
+      select: this._postOverviewSelect,
+      orderBy: {
+        publishDate: 'desc',
+      },
+    });
+  }
+
+  async getDraftPosts(
+    orgId: string,
+    query: { channel?: string; from?: string; to?: string; search?: string }
+  ) {
+    return this._post.model.post.findMany({
+      where: {
+        ...this._buildOverviewWhere(orgId, query),
+        state: 'DRAFT',
+      },
+      select: this._postOverviewSelect,
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
+  async getAiGeneratedPosts(
+    orgId: string,
+    query: { channel?: string; from?: string; to?: string; search?: string }
+  ) {
+    return this._post.model.post.findMany({
+      where: {
+        ...this._buildOverviewWhere(orgId, query),
+        generatedByAi: true,
+      },
+      select: this._postOverviewSelect,
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
+  async getFacebookGroupQueueForOrg(
+    integrationIds: string[],
+    statuses: string[]
+  ) {
+    // FacebookGroupQueue has no FK relation to Integration in the schema,
+    // so scoping to the organization is done by passing in the org's
+    // already-resolved integration ids (fetched via IntegrationService).
+    if (!integrationIds.length) {
+      return [];
+    }
+    return this._facebookGroupQueue.model.facebookGroupQueue.findMany({
+      where: {
+        status: {
+          in: statuses,
+        },
+        integrationId: {
+          in: integrationIds,
+        },
+      },
+      orderBy: {
+        scheduledAt: 'desc',
+      },
+    });
+  }
 
   checkPending15minutesBack() {
     return this._post.model.post.findMany({
@@ -365,7 +513,8 @@ export class PostsRepository {
     date: string,
     body: PostBody,
     tags: { value: string; label: string }[],
-    inter?: number
+    inter?: number,
+    generatedByAi?: boolean
   ) {
     const posts: Post[] = [];
     const uuid = uuidv4();
@@ -401,6 +550,7 @@ export class PostsRepository {
         state: state === 'draft' ? ('DRAFT' as const) : ('QUEUE' as const),
         image: JSON.stringify(value.image),
         settings: JSON.stringify(body.settings),
+        ...(generatedByAi ? { generatedByAi: true } : {}),
         organization: {
           connect: {
             id: orgId,

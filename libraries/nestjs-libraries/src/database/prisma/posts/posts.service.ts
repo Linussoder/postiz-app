@@ -40,6 +40,7 @@ import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validatio
 dayjs.extend(utc);
 import * as Sentry from '@sentry/nestjs';
 import { RefreshIntegrationService } from '@gitroom/nestjs-libraries/integrations/refresh.integration.service';
+import { AuthService } from '@gitroom/helpers/auth/auth.service';
 
 type PostWithConditionals = Post & {
   integration?: Integration;
@@ -165,6 +166,189 @@ export class PostsService {
 
   async getPosts(orgId: string, query: GetPostsDto) {
     return this._postRepository.getPosts(orgId, query);
+  }
+
+  async getPostsOverview(
+    orgId: string,
+    query: {
+      tab: 'scheduled' | 'published' | 'drafts' | 'ai' | 'mail';
+      channel?: string;
+      from?: string;
+      to?: string;
+      search?: string;
+      mailSegment?: 'sent' | 'draft' | 'schedule';
+    }
+  ) {
+    const filters = {
+      channel: query.channel,
+      from: query.from,
+      to: query.to,
+      search: query.search,
+    };
+
+    if (query.tab === 'mail') {
+      return { mail: await this.getMailCampaignsOverview(orgId, query.mailSegment) };
+    }
+
+    const integrations = (
+      await this._integrationService.getIntegrationsList(orgId)
+    ).filter((i) => !i.deletedAt);
+    const integrationIds = integrations.map((i) => i.id);
+
+    switch (query.tab) {
+      case 'scheduled': {
+        const [posts, fbGroup] = await Promise.all([
+          this._postRepository.getScheduledPosts(orgId, filters),
+          this._postRepository.getFacebookGroupQueueForOrg(integrationIds, [
+            'pending',
+          ]),
+        ]);
+        return {
+          posts,
+          facebookGroupQueue: this.mapFacebookGroupQueue(fbGroup, integrations),
+        };
+      }
+      case 'published': {
+        const [posts, fbGroup] = await Promise.all([
+          this._postRepository.getPublishedPosts(orgId, filters),
+          this._postRepository.getFacebookGroupQueueForOrg(integrationIds, [
+            'posted',
+          ]),
+        ]);
+        return {
+          posts,
+          facebookGroupQueue: this.mapFacebookGroupQueue(fbGroup, integrations),
+        };
+      }
+      case 'drafts': {
+        const posts = await this._postRepository.getDraftPosts(orgId, filters);
+        return { posts, facebookGroupQueue: [] };
+      }
+      case 'ai': {
+        const posts = await this._postRepository.getAiGeneratedPosts(
+          orgId,
+          filters
+        );
+        return { posts, facebookGroupQueue: [] };
+      }
+      default:
+        return { posts: [], facebookGroupQueue: [] };
+    }
+  }
+
+  private mapFacebookGroupQueue(
+    rows: Array<{
+      id: string;
+      integrationId: string;
+      postId: string;
+      groupName: string;
+      groupUrl: string;
+      text: string;
+      mediaUrls: any;
+      status: string;
+      scheduledAt: Date;
+      postedAt: Date | null;
+      createdAt: Date;
+    }>,
+    integrations: Array<{ id: string; name: string; picture: string | null }>
+  ) {
+    const statusToBadge: Record<string, 'green' | 'yellow' | 'red'> = {
+      posted: 'green',
+      pending: 'yellow',
+      failed: 'red',
+    };
+
+    return rows.map((row) => {
+      const integration = integrations.find((i) => i.id === row.integrationId);
+      return {
+        type: 'facebook-group' as const,
+        id: row.id,
+        integrationId: row.integrationId,
+        channelLabel: `Facebook Group: ${row.groupName}`,
+        groupUrl: row.groupUrl,
+        text: row.text,
+        mediaUrls: row.mediaUrls,
+        status: row.status,
+        badge: statusToBadge[row.status] || 'gray',
+        scheduledAt: row.scheduledAt,
+        postedAt: row.postedAt,
+        createdAt: row.createdAt,
+        integrationName: integration?.name || 'Facebook Group',
+        integrationPicture: integration?.picture,
+        editable: false,
+      };
+    });
+  }
+
+  async getMailCampaignsOverview(
+    orgId: string,
+    segment?: 'sent' | 'draft' | 'schedule'
+  ) {
+    const integrations = await this._integrationService.getIntegrationsList(
+      orgId
+    );
+    const listmonkIntegration = integrations.find(
+      (i) => i.providerIdentifier === 'listmonk' && !i.deletedAt
+    );
+
+    if (!listmonkIntegration || !listmonkIntegration.customInstanceDetails) {
+      return { sent: [], draft: [], schedule: [] };
+    }
+
+    try {
+      const details = JSON.parse(
+        AuthService.fixedDecryption(listmonkIntegration.customInstanceDetails)
+      );
+      const auth = Buffer.from(
+        `${details.username}:${details.password}`
+      ).toString('base64');
+
+      const statusMap: Record<string, 'sent' | 'draft' | 'schedule'> = {
+        finished: 'sent',
+        draft: 'draft',
+        scheduled: 'schedule',
+      };
+
+      const result: Record<'sent' | 'draft' | 'schedule', any[]> = {
+        sent: [],
+        draft: [],
+        schedule: [],
+      };
+
+      const statusesToFetch = segment
+        ? [Object.keys(statusMap).find((k) => statusMap[k] === segment)!]
+        : Object.keys(statusMap);
+
+      for (const listmonkStatus of statusesToFetch) {
+        const response = await fetch(
+          `${details.url}/api/campaigns?status=${listmonkStatus}&per_page=100`,
+          {
+            headers: {
+              Authorization: `Basic ${auth}`,
+            },
+          }
+        );
+        if (!response.ok) {
+          continue;
+        }
+        const json: any = await response.json();
+        const campaigns = json?.data?.results || [];
+        const mapped = campaigns.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          subject: c.subject,
+          status: c.status,
+          sendAt: c.send_at,
+          createdAt: c.created_at,
+          updatedAt: c.updated_at,
+        }));
+        result[statusMap[listmonkStatus]].push(...mapped);
+      }
+
+      return result;
+    } catch (e) {
+      return { sent: [], draft: [], schedule: [] };
+    }
   }
 
   async updateMedia(id: string, imagesList: any[], convertToJPEG = false) {
@@ -632,7 +816,7 @@ export class PostsService {
     return this._postRepository.countPostsFromDay(orgId, date);
   }
 
-  async createPost(orgId: string, body: CreatePostDto): Promise<any[]> {
+  async createPost(orgId: string, body: CreatePostDto, generatedByAi = false): Promise<any[]> {
     const postList = [];
     for (const post of body.posts) {
       const messages = (post.value || []).map((p) => p.content);
@@ -654,7 +838,8 @@ export class PostsService {
             : body.date,
           post,
           body.tags,
-          body.inter
+          body.inter,
+          generatedByAi
         );
 
       if (!posts?.length) {
@@ -872,7 +1057,7 @@ export class PostsService {
               ],
             },
           ],
-        });
+        }, true);
       }
     }
   }

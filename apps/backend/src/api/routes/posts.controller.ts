@@ -24,6 +24,7 @@ import { Response } from 'express';
 import { GetUserFromRequest } from '@gitroom/nestjs-libraries/user/user.from.request';
 import { ShortLinkService } from '@gitroom/nestjs-libraries/short-linking/short.link.service';
 import { CreateTagDto } from '@gitroom/nestjs-libraries/dtos/posts/create.tag.dto';
+import { GetPostsOverviewDto } from '@gitroom/nestjs-libraries/dtos/posts/get.posts.overview.dto';
 import { AuthorizationActions, Sections } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
 
 @ApiTags('Posts')
@@ -100,6 +101,14 @@ export class PostsController {
     return {
       posts,
     };
+  }
+
+  @Get('/overview')
+  async getPostsOverview(
+    @GetOrgFromRequest() org: Organization,
+    @Query() query: GetPostsOverviewDto
+  ) {
+    return this._postsService.getPostsOverview(org.id, query);
   }
 
   @Get('/find-slot')

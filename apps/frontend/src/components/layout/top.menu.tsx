@@ -42,6 +42,62 @@ export const useMenuItem = () => {
       path: '/launches',
     },
     {
+      name: t('posts', 'Posts'),
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="21"
+          viewBox="0 0 20 21"
+          fill="none"
+        >
+          <path
+            d="M3.33325 5.66667H16.6666M3.33325 10.5H16.6666M3.33325 15.3333H11.6666"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      ),
+      path: '/posts-overview',
+    },
+    {
+      name: t('channels', 'Channels'),
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="21"
+          viewBox="0 0 20 21"
+          fill="none"
+        >
+          <path
+            d="M17.5 6.33333C17.5 7.71404 16.3807 8.83333 15 8.83333C13.6193 8.83333 12.5 7.71404 12.5 6.33333C12.5 4.95262 13.6193 3.83333 15 3.83333C16.3807 3.83333 17.5 4.95262 17.5 6.33333Z"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+          <path
+            d="M7.5 14.6667C7.5 16.0474 6.38071 17.1667 5 17.1667C3.61929 17.1667 2.5 16.0474 2.5 14.6667C2.5 13.286 3.61929 12.1667 5 12.1667C6.38071 12.1667 7.5 13.286 7.5 14.6667Z"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+          <path
+            d="M17.5 14.6667C17.5 16.0474 16.3807 17.1667 15 17.1667C13.6193 17.1667 12.5 16.0474 12.5 14.6667C12.5 13.286 13.6193 12.1667 15 12.1667C16.3807 12.1667 17.5 13.286 17.5 14.6667Z"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+          <path
+            d="M7 13.5L13 7.5M7 15.5H13"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </svg>
+      ),
+      path: '/channels',
+    },
+    {
       name: 'Agent',
       icon: (
         <svg
