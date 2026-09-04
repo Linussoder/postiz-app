@@ -41,6 +41,7 @@ export type AllProvidersSettings =
   | ProviderExtension<'listmonk', ListmonkDto>
   | ProviderExtension<'gmb', GmbSettingsDto>
   | ProviderExtension<'facebook', FacebookDto>
+  | ProviderExtension<'facebook-group', None>
   | ProviderExtension<'wrapcast', FarcasterDto>
   | ProviderExtension<'threads', None>
   | ProviderExtension<'mastodon', None>
@@ -74,6 +75,7 @@ export const allProviders = (setEmpty?: any) => {
     { value: GmbSettingsDto, name: 'gmb' },
     { value: FarcasterDto, name: 'wrapcast' },
     { value: FacebookDto, name: 'facebook' },
+    { value: setEmpty, name: 'facebook-group' },
     { value: setEmpty, name: 'threads' },
     { value: setEmpty, name: 'mastodon' },
     { value: setEmpty, name: 'bluesky' },
