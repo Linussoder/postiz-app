@@ -33,6 +33,7 @@ import { PostComment } from '@gitroom/frontend/components/new-launch/providers/h
 import WordpressProvider from '@gitroom/frontend/components/new-launch/providers/wordpress/wordpress.provider';
 import ListmonkProvider from '@gitroom/frontend/components/new-launch/providers/listmonk/listmonk.provider';
 import GmbProvider from '@gitroom/frontend/components/new-launch/providers/gmb/gmb.provider';
+import FacebookGroupProvider from '@gitroom/frontend/components/new-launch/providers/facebook-group/facebook-group.provider';
 
 export const Providers = [
   {
@@ -66,6 +67,10 @@ export const Providers = [
   {
     identifier: 'facebook',
     component: FacebookProvider,
+  },
+  {
+    identifier: 'facebook-group',
+    component: FacebookGroupProvider,
   },
   {
     identifier: 'instagram',
