@@ -355,6 +355,29 @@ model Integration {
   @@index([disabled])
 }
 
+// Queue for the facebook-group provider: Facebook has no public API to post
+// into groups, so publish() writes a row here instead of calling any API.
+// A separate hourly cron process (built independently of this provider)
+// reads pending rows and posts manually in a real browser.
+model FacebookGroupQueue {
+  id            String    @id @default(cuid())
+  integrationId String
+  postId        String
+  groupName     String
+  groupUrl      String
+  text          String
+  mediaUrls     Json      @default("[]")
+  status        String    @default("pending")
+  scheduledAt   DateTime
+  postedAt      DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([integrationId])
+  @@index([postId])
+  @@index([status])
+  @@index([scheduledAt])
+}
+
 model Signatures {
   id             String       @id @default(uuid())
   organizationId String

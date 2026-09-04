@@ -40,6 +40,7 @@ import SkoolProvider from '@gitroom/frontend/components/new-launch/providers/sko
 import WhopProvider from '@gitroom/frontend/components/new-launch/providers/whop/whop.provider';
 import MeweProvider from '@gitroom/frontend/components/new-launch/providers/mewe/mewe.provider';
 import TumblrProvider from '@gitroom/frontend/components/new-launch/providers/tumblr/tumblr.provider';
+import FacebookGroupProvider from '@gitroom/frontend/components/new-launch/providers/facebook-group/facebook-group.provider';
 
 export const Providers = [
   {
@@ -73,6 +74,10 @@ export const Providers = [
   {
     identifier: 'facebook',
     component: FacebookProvider,
+  },
+  {
+    identifier: 'facebook-group',
+    component: FacebookGroupProvider,
   },
   {
     identifier: 'instagram',
