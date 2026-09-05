@@ -524,6 +524,30 @@ export const MediaBox: FC<{
     [mutate]
   );
 
+  const bulkDelete = useCallback(async () => {
+    if (!bulkSelected.size) {
+      return;
+    }
+    if (
+      !(await deleteDialog(
+        t(
+          'are_you_sure_you_want_to_delete_n_images',
+          'Are you sure you want to delete {{n}} images?'
+        ).replace('{{n}}', String(bulkSelected.size))
+      ))
+    ) {
+      return;
+    }
+    await Promise.all(
+      Array.from(bulkSelected).map((id) =>
+        fetch(`/media/${id}`, { method: 'DELETE' })
+      )
+    );
+    setBulkSelected(new Set());
+    await mutateCategories();
+    await mutate();
+  }, [bulkSelected, mutate, mutateCategories]);
+
   const refNew = useRef(null);
 
   useEffect(() => {
@@ -756,6 +780,12 @@ export const MediaBox: FC<{
                         onClick={() => setBulkSelected(new Set())}
                       >
                         {t('clear', 'Clear')}
+                      </Button>
+                      <Button
+                        className="!h-[26px] !py-0 !px-[10px] text-[12px] !bg-red-500/70 hover:!bg-red-500"
+                        onClick={bulkDelete}
+                      >
+                        {t('delete_selected', 'Delete selected')}
                       </Button>
                     </div>
                   )}
