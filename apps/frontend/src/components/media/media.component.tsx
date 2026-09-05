@@ -295,6 +295,7 @@ export const MediaBox: FC<{
   );
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [bulkAssignTarget, setBulkAssignTarget] = useState<string>('');
+  const [uploadCategory, setUploadCategory] = useState<string>('');
   const ref = useRef<any>(null);
 
   useEffect(() => {
@@ -322,6 +323,17 @@ export const MediaBox: FC<{
       setCategories(categoriesData.categories);
     }
   }, [categoriesData]);
+
+  useEffect(() => {
+    if (
+      selectedCategory !== ALL_CATEGORIES &&
+      selectedCategory !== UNCATEGORIZED
+    ) {
+      setUploadCategory(selectedCategory);
+    } else {
+      setUploadCategory('');
+    }
+  }, [selectedCategory]);
 
   const createCategory = useCallback(
     async (name: string) => {
@@ -418,16 +430,12 @@ export const MediaBox: FC<{
       );
 
       if (props.standalone) {
-        if (
-          selectedCategory !== ALL_CATEGORIES &&
-          selectedCategory !== UNCATEGORIZED &&
-          onlyNewMedia.length
-        ) {
+        if (uploadCategory && onlyNewMedia.length) {
           await fetch('/media/bulk-assign-category', {
             method: 'POST',
             body: JSON.stringify({
               mediaIds: onlyNewMedia.map((m: any) => m.id),
-              categoryId: selectedCategory,
+              categoryId: uploadCategory,
             }),
           });
           await mutateCategories();
@@ -443,7 +451,7 @@ export const MediaBox: FC<{
       addNewMedia,
       mediaList,
       selectedMedia,
-      selectedCategory,
+      uploadCategory,
       mutateCategories,
       fetch,
     ]
@@ -649,6 +657,52 @@ export const MediaBox: FC<{
                     onCreate={createCategory}
                     onDelete={deleteCategory}
                   />
+                  <div className="flex items-center gap-[8px]">
+                    <span className="text-[12px] text-textColor opacity-70">
+                      {t('upload_to_category', 'Upload to category')}:
+                    </span>
+                    <select
+                      value={uploadCategory}
+                      onChange={(e) => setUploadCategory(e.target.value)}
+                      className="bg-transparent border border-tableBorder rounded-md px-[6px] py-[2px] text-[12px] text-textColor"
+                    >
+                      <option value="">
+                        {t('no_category', 'No category')}
+                      </option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                    {!!mediaList.length && (
+                      <Button
+                        secondary={true}
+                        className="!h-[26px] !py-0 !px-[10px] text-[12px]"
+                        onClick={() => {
+                          const filteredIds = mediaList
+                            .filter((f) => {
+                              if (type === 'video') {
+                                return f.path.indexOf('mp4') > -1;
+                              } else if (type === 'image') {
+                                return f.path.indexOf('mp4') === -1;
+                              }
+                              return true;
+                            })
+                            .map((m) => m.id);
+                          setBulkSelected(
+                            bulkSelected.size === filteredIds.length
+                              ? new Set()
+                              : new Set(filteredIds)
+                          );
+                        }}
+                      >
+                        {bulkSelected.size === mediaList.length
+                          ? t('deselect_all', 'Deselect all')
+                          : t('select_all', 'Select all')}
+                      </Button>
+                    )}
+                  </div>
                   {bulkSelected.size > 0 && (
                     <div className="flex items-center gap-[8px] bg-newBgLineColor rounded-md px-[10px] py-[6px]">
                       <span className="text-[12px] text-textColor">
