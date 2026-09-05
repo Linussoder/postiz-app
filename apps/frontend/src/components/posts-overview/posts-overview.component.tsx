@@ -486,9 +486,31 @@ export const PostsOverviewComponent = () => {
     <div className="flex flex-col gap-[16px] p-[20px]">
       <div className="flex items-center justify-between">
         <h1 className="text-[24px] font-[600]">{t('posts', 'Posts')}</h1>
-        <Button onClick={createNewPost} className="flex items-center gap-[6px]">
-          + {t('create_post', 'Create post')}
-        </Button>
+        <button
+          onClick={createNewPost}
+          className="text-btnText bg-btnSimple h-[44px] pt-[12px] pb-[14px] ps-[16px] pe-[20px] justify-center items-center flex rounded-[8px] gap-[8px]"
+        >
+          <div>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="21"
+              height="20"
+              viewBox="0 0 21 20"
+              fill="none"
+            >
+              <path
+                d="M10.5001 4.16699V15.8337M4.66675 10.0003H16.3334"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+          <div className="text-start text-[16px]">
+            {t('create_post', 'Create post')}
+          </div>
+        </button>
       </div>
       <div className="flex gap-[8px] border-b border-customColor6 pb-[8px]">
         {TABS.map((tabItem) => (
