@@ -137,6 +137,14 @@ export class IntegrationService {
     return this._integrationRepository.updateOnCustomerName(org, id, name);
   }
 
+  updateIntegrationDetails(
+    org: string,
+    id: string,
+    body: { name?: string; picture?: string; groupUrl?: string }
+  ) {
+    return this._integrationRepository.updateIntegrationDetails(org, id, body);
+  }
+
   getIntegrationsList(org: string) {
     return this._integrationRepository.getIntegrationsList(org);
   }

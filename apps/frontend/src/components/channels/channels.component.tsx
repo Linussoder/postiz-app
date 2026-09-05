@@ -13,6 +13,7 @@ import {
   AddProviderButton,
 } from '@gitroom/frontend/components/launches/add.provider.component';
 import { SettingsModal } from '@gitroom/frontend/components/launches/settings.modal';
+import { EditChannelModal } from '@gitroom/frontend/components/channels/edit.channel.modal';
 
 export const ChannelsComponent = () => {
   const t = useT();
@@ -94,6 +95,25 @@ export const ChannelsComponent = () => {
     [mutate]
   );
 
+  const openEdit = useCallback(
+    (integration: any) => (e: React.MouseEvent) => {
+      e.stopPropagation();
+      modal.openModal({
+        classNames: {
+          modal: 'w-[100%] max-w-[600px] bg-transparent text-textColor',
+        },
+        size: '100%',
+        withCloseButton: false,
+        closeOnEscape: true,
+        closeOnClickOutside: true,
+        children: (
+          <EditChannelModal integration={integration} mutate={mutate} />
+        ),
+      });
+    },
+    [mutate]
+  );
+
   if (isLoading) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -117,7 +137,7 @@ export const ChannelsComponent = () => {
         {(integrations || []).map((integration: any) => (
           <div
             key={integration.id}
-            onClick={openSettings(integration)}
+            onClick={openEdit(integration)}
             className="flex items-center gap-[16px] p-[16px] rounded-[8px] bg-newBgColorInner cursor-pointer hover:bg-boxHover transition-all"
           >
             <ImageWithFallback
@@ -145,6 +165,16 @@ export const ChannelsComponent = () => {
                 ? t('disabled', 'Disabled')
                 : t('enabled', 'Enabled')}
             </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                openSettings(integration)();
+              }}
+              className="text-[13px] px-[12px] py-[6px] rounded-[6px] bg-fifth hover:bg-boxHover"
+            >
+              {t('settings', 'Settings')}
+            </button>
             <button
               type="button"
               onClick={(e) => {

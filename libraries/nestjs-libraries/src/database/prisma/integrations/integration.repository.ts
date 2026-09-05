@@ -6,6 +6,7 @@ import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { IntegrationTimeDto } from '@gitroom/nestjs-libraries/dtos/integrations/integration.time.dto';
 import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
 import { PlugDto } from '@gitroom/nestjs-libraries/dtos/plugs/plug.dto';
+import { AuthService } from '@gitroom/helpers/auth/auth.service';
 
 @Injectable()
 export class IntegrationRepository {
@@ -329,6 +330,26 @@ export class IntegrationRepository {
       data: {
         ...(name ? { name } : {}),
         ...(url ? { picture: url } : {}),
+      },
+    });
+  }
+
+  updateIntegrationDetails(
+    org: string,
+    id: string,
+    body: { name?: string; picture?: string; groupUrl?: string }
+  ) {
+    return this._integration.model.integration.update({
+      where: {
+        id,
+        organizationId: org,
+      },
+      data: {
+        ...(body.name ? { name: body.name } : {}),
+        ...(body.picture ? { picture: body.picture } : {}),
+        ...(body.groupUrl
+          ? { token: AuthService.fixedEncryption(body.groupUrl) }
+          : {}),
       },
     });
   }

@@ -86,6 +86,19 @@ export class IntegrationsController {
     return this._integrationService.updateOnCustomerName(org.id, id, body.name);
   }
 
+  @Put('/:id/details')
+  async updateIntegrationDetails(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string,
+    @Body() body: { name?: string; picture?: string; groupUrl?: string }
+  ) {
+    return this._integrationService.updateIntegrationDetails(
+      org.id,
+      id,
+      body
+    );
+  }
+
   @Get('/list')
   async getIntegrationList(@GetOrgFromRequest() org: Organization) {
     return {
