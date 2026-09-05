@@ -19,6 +19,20 @@ import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
 
 dayjs.extend(utc);
 
+const stripHtml = (html: string) => {
+  if (!html) return '';
+  return html
+    .replace(/<\/(p|div|br|li)>/gi, ' ')
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
 type TabKey = 'scheduled' | 'published' | 'drafts' | 'ai' | 'mail';
 type MailSegment = 'sent' | 'draft' | 'schedule';
 
@@ -378,7 +392,7 @@ export const PostsOverviewComponent = () => {
           />
           <div className="flex flex-col flex-1 min-w-0">
             <div className="text-[14px] truncate max-w-[500px]">
-              {post.content}
+              {stripHtml(post.content)}
             </div>
             <div className="text-[12px] opacity-60">
               {post.integration?.name} •{' '}
@@ -419,7 +433,7 @@ export const PostsOverviewComponent = () => {
           FB
         </div>
         <div className="flex flex-col flex-1 min-w-0">
-          <div className="text-[14px] truncate max-w-[500px]">{row.text}</div>
+          <div className="text-[14px] truncate max-w-[500px]">{stripHtml(row.text)}</div>
           <div className="text-[12px] opacity-60">
             {row.channelLabel} •{' '}
             {dayjs(row.scheduledAt).format('YYYY-MM-DD HH:mm')}
