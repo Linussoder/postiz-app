@@ -158,6 +158,123 @@ export const showMediaBox = (
   showModalEmitter.emit('show-modal', callback);
 };
 const CHUNK_SIZE = 1024 * 1024;
+type MediaCategory = {
+  id: string;
+  name: string;
+  _count?: { media: number };
+};
+const UNCATEGORIZED = '__uncategorized__';
+const ALL_CATEGORIES = '__all__';
+
+export const MediaCategoryBar: FC<{
+  categories: MediaCategory[];
+  selected: string;
+  setSelected: (id: string) => void;
+  onCreate: (name: string) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+}> = ({ categories, selected, setSelected, onCreate, onDelete }) => {
+  const t = useT();
+  const [newName, setNewName] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  const submit = useCallback(async () => {
+    if (!newName.trim()) {
+      return;
+    }
+    setCreating(true);
+    try {
+      await onCreate(newName.trim());
+      setNewName('');
+    } finally {
+      setCreating(false);
+    }
+  }, [newName, onCreate]);
+
+  return (
+    <div className="flex flex-wrap items-center gap-[8px] pb-[10px]">
+      <div
+        onClick={() => setSelected(ALL_CATEGORIES)}
+        className={clsx(
+          'cursor-pointer px-[10px] py-[4px] rounded-full text-[12px] border',
+          selected === ALL_CATEGORIES
+            ? 'bg-forth border-forth text-white'
+            : 'border-tableBorder text-textColor hover:text-white'
+        )}
+      >
+        {t('all', 'All')}
+      </div>
+      <div
+        onClick={() => setSelected(UNCATEGORIZED)}
+        className={clsx(
+          'cursor-pointer px-[10px] py-[4px] rounded-full text-[12px] border',
+          selected === UNCATEGORIZED
+            ? 'bg-forth border-forth text-white'
+            : 'border-tableBorder text-textColor hover:text-white'
+        )}
+      >
+        {t('uncategorized', 'Uncategorized')}
+      </div>
+      {categories.map((category) => (
+        <div
+          key={category.id}
+          className={clsx(
+            'group cursor-pointer px-[10px] py-[4px] rounded-full text-[12px] border flex items-center gap-[6px]',
+            selected === category.id
+              ? 'bg-forth border-forth text-white'
+              : 'border-tableBorder text-textColor hover:text-white'
+          )}
+        >
+          <span onClick={() => setSelected(category.id)}>
+            {category.name}
+            {typeof category._count?.media === 'number' && (
+              <span className="opacity-60"> ({category._count.media})</span>
+            )}
+          </span>
+          <span
+            onClick={async (e) => {
+              e.stopPropagation();
+              if (
+                !(await deleteDialog(
+                  t(
+                    'are_you_sure_you_want_to_delete_this_category',
+                    'Are you sure you want to delete this category?'
+                  )
+                ))
+              ) {
+                return;
+              }
+              await onDelete(category.id);
+            }}
+            className="opacity-0 group-hover:opacity-100 text-red-400 transition-opacity"
+          >
+            ×
+          </span>
+        </div>
+      ))}
+      <div className="flex items-center gap-[4px]">
+        <input
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              submit();
+            }
+          }}
+          placeholder={t('new_category', 'New category')}
+          className="bg-transparent border border-tableBorder rounded-md px-[8px] py-[4px] text-[12px] text-textColor outline-none w-[140px]"
+        />
+        <Button
+          onClick={submit}
+          disabled={creating || !newName.trim()}
+          className="!h-[28px] !py-0 !px-[10px] text-[12px]"
+        >
+          {t('add', 'Add')}
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 export const MediaBox: FC<{
   setMedia: (params: { id: string; path: string }[]) => void;
   standalone?: boolean;
@@ -172,6 +289,12 @@ export const MediaBox: FC<{
   const [page, setPage] = useState(0);
   const [pages, setPages] = useState(0);
   const [selectedMedia, setSelectedMedia] = useState<Media[]>([]);
+  const [categories, setCategories] = useState<MediaCategory[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>(
+    ALL_CATEGORIES
+  );
+  const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
+  const [bulkAssignTarget, setBulkAssignTarget] = useState<string>('');
   const ref = useRef<any>(null);
 
   useEffect(() => {
@@ -181,9 +304,62 @@ export const MediaBox: FC<{
     };
   }, []);
 
+  const loadCategories = useCallback(async () => {
+    if (!props.standalone) {
+      return { categories: [] };
+    }
+    const list = await (await fetch('/media/categories')).json();
+    return { categories: list || [] };
+  }, [props.standalone]);
+
+  const { data: categoriesData, mutate: mutateCategories } = useSWR(
+    props.standalone ? 'get-media-categories' : null,
+    loadCategories
+  );
+
+  useEffect(() => {
+    if (categoriesData?.categories) {
+      setCategories(categoriesData.categories);
+    }
+  }, [categoriesData]);
+
+  const createCategory = useCallback(
+    async (name: string) => {
+      await fetch('/media/categories', {
+        method: 'POST',
+        body: JSON.stringify({ name }),
+      });
+      await mutateCategories();
+    },
+    [mutateCategories]
+  );
+
+  const deleteCategory = useCallback(
+    async (id: string) => {
+      await fetch(`/media/categories/${id}`, {
+        method: 'DELETE',
+      });
+      if (selectedCategory === id) {
+        setSelectedCategory(ALL_CATEGORIES);
+      }
+      await mutateCategories();
+    },
+    [mutateCategories, selectedCategory]
+  );
+
   const loadMedia = useCallback(async () => {
-    return (await fetch(`/media?page=${page + 1}`)).json();
-  }, [page]);
+    const params = new URLSearchParams({ page: String(page + 1) });
+    if (props.standalone && selectedCategory === UNCATEGORIZED) {
+      // handled client-side below since backend filters by categoryId only
+    } else if (
+      props.standalone &&
+      selectedCategory !== ALL_CATEGORIES &&
+      selectedCategory !== UNCATEGORIZED
+    ) {
+      params.set('categoryId', selectedCategory);
+    }
+    return (await fetch(`/media?${params.toString()}`)).json();
+  }, [page, selectedCategory, props.standalone]);
 
   const setNewMedia = useCallback(
     (media: Media) => () => {
@@ -224,7 +400,10 @@ export const MediaBox: FC<{
     setMedia(selectedMedia);
     closeModal();
   }, [selectedMedia]);
-  const { data, mutate } = useSWR(`get-media-${page}`, loadMedia);
+  const { data, mutate } = useSWR(
+    `get-media-${page}-${selectedCategory}`,
+    loadMedia
+  );
 
   const finishUpload = useCallback(
     async (res: any) => {
@@ -239,12 +418,35 @@ export const MediaBox: FC<{
       );
 
       if (props.standalone) {
+        if (
+          selectedCategory !== ALL_CATEGORIES &&
+          selectedCategory !== UNCATEGORIZED &&
+          onlyNewMedia.length
+        ) {
+          await fetch('/media/bulk-assign-category', {
+            method: 'POST',
+            body: JSON.stringify({
+              mediaIds: onlyNewMedia.map((m: any) => m.id),
+              categoryId: selectedCategory,
+            }),
+          });
+          await mutateCategories();
+          await mutate();
+        }
         return;
       }
 
       addNewMedia(onlyNewMedia)();
     },
-    [mutate, addNewMedia, mediaList, selectedMedia]
+    [
+      mutate,
+      addNewMedia,
+      mediaList,
+      selectedMedia,
+      selectedCategory,
+      mutateCategories,
+      fetch,
+    ]
   );
 
   const dragAndDrop = useCallback(
@@ -321,9 +523,15 @@ export const MediaBox: FC<{
       setPages(data.pages);
     }
     if (data?.results && data?.results?.length) {
-      setListMedia([...data.results]);
+      const filtered =
+        props.standalone && selectedCategory === UNCATEGORIZED
+          ? data.results.filter((m: any) => !m.categoryId)
+          : data.results;
+      setListMedia([...filtered]);
+    } else if (data?.results) {
+      setListMedia([]);
     }
-  }, [data]);
+  }, [data, selectedCategory]);
 
   useEffect(() => {
     refNew?.current?.scrollIntoView({
@@ -429,6 +637,76 @@ export const MediaBox: FC<{
                   'justify-center items-center text-textColor'
               )}
             >
+              {props.standalone && (
+                <div className="w-full flex flex-col gap-[10px]">
+                  <MediaCategoryBar
+                    categories={categories}
+                    selected={selectedCategory}
+                    setSelected={(id) => {
+                      setSelectedCategory(id);
+                      setPage(0);
+                    }}
+                    onCreate={createCategory}
+                    onDelete={deleteCategory}
+                  />
+                  {bulkSelected.size > 0 && (
+                    <div className="flex items-center gap-[8px] bg-newBgLineColor rounded-md px-[10px] py-[6px]">
+                      <span className="text-[12px] text-textColor">
+                        {t('n_selected', '{{n}} selected').replace(
+                          '{{n}}',
+                          String(bulkSelected.size)
+                        )}
+                      </span>
+                      <select
+                        value={bulkAssignTarget}
+                        onChange={(e) => setBulkAssignTarget(e.target.value)}
+                        className="bg-transparent border border-tableBorder rounded-md px-[6px] py-[2px] text-[12px] text-textColor"
+                      >
+                        <option value="">
+                          {t('choose_category', 'Choose category')}
+                        </option>
+                        <option value="__none__">
+                          {t('remove_category', 'Remove category')}
+                        </option>
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                      <Button
+                        className="!h-[26px] !py-0 !px-[10px] text-[12px]"
+                        disabled={!bulkAssignTarget}
+                        onClick={async () => {
+                          await fetch('/media/bulk-assign-category', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                              mediaIds: Array.from(bulkSelected),
+                              categoryId:
+                                bulkAssignTarget === '__none__'
+                                  ? undefined
+                                  : bulkAssignTarget,
+                            }),
+                          });
+                          setBulkSelected(new Set());
+                          setBulkAssignTarget('');
+                          await mutateCategories();
+                          await mutate();
+                        }}
+                      >
+                        {t('apply', 'Apply')}
+                      </Button>
+                      <Button
+                        secondary={true}
+                        className="!h-[26px] !py-0 !px-[10px] text-[12px]"
+                        onClick={() => setBulkSelected(new Set())}
+                      >
+                        {t('clear', 'Clear')}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
               {!mediaList.length ? (
                 <div className="flex flex-col text-center items-center justify-center mx-auto">
                   <div>
@@ -486,12 +764,37 @@ export const MediaBox: FC<{
                     key={media.id}
                     className={clsx(
                       'w-[120px] h-[120px] flex select-none relative cursor-pointer',
-                      selectedMedia.find((p) => p.id === media.id)
+                      props.standalone
+                        ? bulkSelected.has(media.id)
+                          ? 'border-4 border-forth'
+                          : 'border-tableBorder border-2'
+                        : selectedMedia.find((p) => p.id === media.id)
                         ? 'border-4 border-forth'
                         : 'border-tableBorder border-2'
                     )}
-                    onClick={props.standalone ? () => {} : setNewMedia(media)}
+                    onClick={
+                      props.standalone
+                        ? () => {
+                            setBulkSelected((current) => {
+                              const next = new Set(current);
+                              if (next.has(media.id)) {
+                                next.delete(media.id);
+                              } else {
+                                next.add(media.id);
+                              }
+                              return next;
+                            });
+                          }
+                        : setNewMedia(media)
+                    }
                   >
+                    {props.standalone && (
+                      <div className="absolute top-[4px] start-[4px] z-[100] w-[18px] h-[18px] rounded-[3px] bg-black/60 flex items-center justify-center">
+                        {bulkSelected.has(media.id) && (
+                          <span className="text-white text-[11px]">✓</span>
+                        )}
+                      </div>
+                    )}
                     <div
                       onClick={removeItem(media)}
                       className="border border-red-400 !text-white flex justify-center items-center absolute w-[20px] z-[100] h-[20px] rounded-full bg-red-700 -top-[5px] -end-[5px]"

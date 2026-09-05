@@ -25,6 +25,13 @@ import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
 import { SaveMediaInformationDto } from '@gitroom/nestjs-libraries/dtos/media/save.media.information.dto';
 import { VideoDto } from '@gitroom/nestjs-libraries/dtos/videos/video.dto';
 import { VideoFunctionDto } from '@gitroom/nestjs-libraries/dtos/videos/video.function.dto';
+import {
+  CreateMediaCategoryDto,
+  UpdateMediaCategoryDto,
+  AssignMediaCategoryDto,
+  BulkAssignMediaCategoryDto,
+} from '@gitroom/nestjs-libraries/dtos/media/media.category.dto';
+import { SaveBulkMediaDto } from '@gitroom/nestjs-libraries/dtos/media/bulk.upload.media.dto';
 
 @ApiTags('Media')
 @Controller('/media')
@@ -115,6 +122,70 @@ export class MediaController {
     );
   }
 
+  @Post('/save-bulk-media')
+  async saveBulkMedia(
+    @GetOrgFromRequest() org: Organization,
+    @Body() body: SaveBulkMediaDto
+  ) {
+    if (!body?.files?.length) {
+      return [];
+    }
+    return this._mediaService.saveBulkFiles(org.id, body);
+  }
+
+  @Get('/categories')
+  getCategories(@GetOrgFromRequest() org: Organization) {
+    return this._mediaService.getCategories(org.id);
+  }
+
+  @Post('/categories')
+  createCategory(
+    @GetOrgFromRequest() org: Organization,
+    @Body() body: CreateMediaCategoryDto
+  ) {
+    return this._mediaService.createCategory(org.id, body);
+  }
+
+  @Post('/categories/update')
+  updateCategory(
+    @GetOrgFromRequest() org: Organization,
+    @Body() body: UpdateMediaCategoryDto
+  ) {
+    return this._mediaService.updateCategory(org.id, body);
+  }
+
+  @Delete('/categories/:id')
+  deleteCategory(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string
+  ) {
+    return this._mediaService.deleteCategory(org.id, id);
+  }
+
+  @Post('/assign-category')
+  assignCategory(
+    @GetOrgFromRequest() org: Organization,
+    @Body() body: AssignMediaCategoryDto
+  ) {
+    return this._mediaService.assignCategory(
+      org.id,
+      body.mediaId,
+      body.categoryId
+    );
+  }
+
+  @Post('/bulk-assign-category')
+  bulkAssignCategory(
+    @GetOrgFromRequest() org: Organization,
+    @Body() body: BulkAssignMediaCategoryDto
+  ) {
+    return this._mediaService.bulkAssignCategory(
+      org.id,
+      body.mediaIds,
+      body.categoryId
+    );
+  }
+
   @Post('/information')
   saveMediaInformation(
     @GetOrgFromRequest() org: Organization,
@@ -172,9 +243,10 @@ export class MediaController {
   @Get('/')
   getMedia(
     @GetOrgFromRequest() org: Organization,
-    @Query('page') page: number
+    @Query('page') page: number,
+    @Query('categoryId') categoryId?: string
   ) {
-    return this._mediaService.getMedia(org.id, page);
+    return this._mediaService.getMedia(org.id, page, categoryId);
   }
 
   @Get('/video-options')

@@ -12,6 +12,11 @@ import {
   Sections,
   SubscriptionException,
 } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
+import {
+  CreateMediaCategoryDto,
+  UpdateMediaCategoryDto,
+} from '@gitroom/nestjs-libraries/dtos/media/media.category.dto';
+import { SaveBulkMediaDto } from '@gitroom/nestjs-libraries/dtos/media/bulk.upload.media.dto';
 
 @Injectable()
 export class MediaService {
@@ -52,12 +57,49 @@ export class MediaService {
     return generating;
   }
 
-  saveFile(org: string, fileName: string, filePath: string) {
-    return this._mediaRepository.saveFile(org, fileName, filePath);
+  saveFile(
+    org: string,
+    fileName: string,
+    filePath: string,
+    categoryId?: string
+  ) {
+    return this._mediaRepository.saveFile(org, fileName, filePath, categoryId);
   }
 
-  getMedia(org: string, page: number) {
-    return this._mediaRepository.getMedia(org, page);
+  saveBulkFiles(org: string, data: SaveBulkMediaDto) {
+    return this._mediaRepository.saveBulkFiles(org, data);
+  }
+
+  getMedia(org: string, page: number, categoryId?: string) {
+    return this._mediaRepository.getMedia(org, page, categoryId);
+  }
+
+  getCategories(org: string) {
+    return this._mediaRepository.getCategories(org);
+  }
+
+  createCategory(org: string, data: CreateMediaCategoryDto) {
+    return this._mediaRepository.createCategory(org, data);
+  }
+
+  updateCategory(org: string, data: UpdateMediaCategoryDto) {
+    return this._mediaRepository.updateCategory(org, data);
+  }
+
+  deleteCategory(org: string, id: string) {
+    return this._mediaRepository.deleteCategory(org, id);
+  }
+
+  assignCategory(org: string, mediaId: string, categoryId?: string) {
+    return this._mediaRepository.assignCategory(org, mediaId, categoryId);
+  }
+
+  bulkAssignCategory(org: string, mediaIds: string[], categoryId?: string) {
+    return this._mediaRepository.bulkAssignCategory(
+      org,
+      mediaIds,
+      categoryId
+    );
   }
 
   saveMediaInformation(org: string, data: SaveMediaInformationDto) {

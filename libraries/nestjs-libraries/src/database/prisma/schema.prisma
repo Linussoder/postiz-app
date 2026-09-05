@@ -26,6 +26,7 @@ model Organization {
   github            GitHub[]
   Integration       Integration[]
   media             Media[]
+  mediaCategories   MediaCategory[]
   buyerOrganization MessagesGroup[]
   notifications     Notifications[]
   plugs             Plugs[]
@@ -210,13 +211,30 @@ model Media {
   thumbnail          String?
   alt                String?
   thumbnailTimestamp Int?
+  categoryId         String?
   organization       Organization        @relation(fields: [organizationId], references: [id])
+  category           MediaCategory?      @relation(fields: [categoryId], references: [id])
   agencies           SocialMediaAgency[]
   userPicture        User[]
 
   @@index([name])
   @@index([organizationId])
   @@index([type])
+  @@index([categoryId])
+}
+
+model MediaCategory {
+  id             String       @id @default(uuid())
+  name           String
+  organizationId String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  deletedAt      DateTime?
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  media          Media[]
+
+  @@index([organizationId])
+  @@index([deletedAt])
 }
 
 model SocialMediaAgency {
