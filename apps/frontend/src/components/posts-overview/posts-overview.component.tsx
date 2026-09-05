@@ -162,6 +162,34 @@ export const PostsOverviewComponent = () => {
     [integrations, mutate]
   );
 
+  const createNewPost = useCallback(async () => {
+    const date = (await (await fetch('/posts/find-slot')).json()).date;
+    const allIntegrations = (integrations || []).map((p: any) => ({ ...p }));
+
+    modal.openModal({
+      closeOnClickOutside: false,
+      closeOnEscape: false,
+      withCloseButton: false,
+      removeLayout: true,
+      askClose: true,
+      classNames: {
+        modal: 'w-[100%] max-w-[1400px] bg-transparent text-textColor',
+      },
+      id: 'add-edit-modal',
+      children: (
+        <AddEditModal
+          allIntegrations={allIntegrations}
+          reopenModal={createNewPost}
+          mutate={mutate}
+          integrations={allIntegrations}
+          date={dayjs.utc(date).local()}
+        />
+      ),
+      size: '80%',
+      title: ``,
+    });
+  }, [integrations, mutate]);
+
   const bulkDelete = useCallback(async () => {
     if (!selected.length) return;
     const groups = posts
@@ -456,7 +484,12 @@ export const PostsOverviewComponent = () => {
 
   return (
     <div className="flex flex-col gap-[16px] p-[20px]">
-      <h1 className="text-[24px] font-[600]">{t('posts', 'Posts')}</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-[24px] font-[600]">{t('posts', 'Posts')}</h1>
+        <Button onClick={createNewPost} className="flex items-center gap-[6px]">
+          + {t('create_post', 'Create post')}
+        </Button>
+      </div>
       <div className="flex gap-[8px] border-b border-customColor6 pb-[8px]">
         {TABS.map((tabItem) => (
           <button
