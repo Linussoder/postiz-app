@@ -64,14 +64,11 @@ export class CopilotController {
     @Res() res: Response,
     @GetOrgFromRequest() organization: Organization
   ) {
-    const hasOpenAiKey = !!process.env.OPENAI_API_KEY;
-    const hasAnthropicKey = !!(
-      process.env.ANTHROPIC_TOKEN || process.env.ANTHROPIC_API_KEY
-    );
-    if (!hasOpenAiKey && !hasAnthropicKey) {
-      Logger.warn(
-        'Neither OPENAI_API_KEY nor ANTHROPIC_TOKEN/ANTHROPIC_API_KEY is set, chat functionality will not work'
-      );
+    if (
+      process.env.OPENAI_API_KEY === undefined ||
+      process.env.OPENAI_API_KEY === ''
+    ) {
+      Logger.warn('OpenAI API key not set, chat functionality will not work');
       return;
     }
     const mastra = await this._mastraService.mastra();

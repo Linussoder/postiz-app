@@ -1,44 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { Agent } from '@mastra/core/agent';
 import { openai } from '@ai-sdk/openai';
-import { createAnthropic } from '@ai-sdk/anthropic';
 import { Memory } from '@mastra/memory';
 import { pStore } from '@gitroom/nestjs-libraries/chat/mastra.store';
 import { array, object, string } from 'zod';
 import { ModuleRef } from '@nestjs/core';
 import { toolList } from '@gitroom/nestjs-libraries/chat/tools/tool.list';
 import dayjs from 'dayjs';
-
-const buildAgentModel = () => {
-  const anthropicToken =
-    process.env.ANTHROPIC_TOKEN || process.env.ANTHROPIC_API_KEY;
-
-  if (anthropicToken) {
-    // OAuth setup tokens (sk-ant-oat...) require Bearer auth + the
-    // oauth-2025-04-20 beta header instead of the standard x-api-key header
-    // that plain API keys (sk-ant-api...) use.
-    const isOAuthToken = anthropicToken.startsWith('sk-ant-oat');
-    const anthropicProvider = createAnthropic({
-      ...(isOAuthToken
-        ? {
-            apiKey: '',
-            headers: {
-              authorization: `Bearer ${anthropicToken}`,
-              'anthropic-beta': 'oauth-2025-04-20',
-            },
-          }
-        : {
-            apiKey: anthropicToken,
-          }),
-    });
-
-    return anthropicProvider(
-      process.env.AGENT_ANTHROPIC_MODEL || 'claude-sonnet-4-5-20250929'
-    );
-  }
-
-  return openai('gpt-4.1');
-};
 
 export const AgentState = object({
   proverbs: array(string()).default([]),
@@ -117,7 +85,7 @@ export class LoadToolsService {
       )}
 `;
       },
-      model: buildAgentModel(),
+      model: openai('gpt-4.1'),
       tools,
       memory: new Memory({
         storage: pStore,
