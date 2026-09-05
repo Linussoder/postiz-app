@@ -599,8 +599,8 @@ export const MediaBox: FC<{
 
               <div className="absolute flex justify-center mt-[55px] items-center pointer-events-none text-center h-[57px] w-full start-0 rounded-lg transition-all group text-sm font-semibold bg-transparent text-gray-800 hover:bg-gray-100 focus:text-primary-500">
                 {t(
-                  'select_or_upload_pictures_maximum_5_at_a_time',
-                  'Select or upload pictures (maximum 5 at a time)'
+                  'select_or_upload_pictures',
+                  'Select or upload pictures (bulk upload supported)'
                 )}
                 <br />
                 {t(
