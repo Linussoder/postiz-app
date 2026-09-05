@@ -351,6 +351,215 @@ export class PostsService {
     }
   }
 
+  private async getListmonkDetails(orgId: string) {
+    const integrations = await this._integrationService.getIntegrationsList(
+      orgId
+    );
+    const listmonkIntegration = integrations.find(
+      (i) => i.providerIdentifier === 'listmonk' && !i.deletedAt
+    );
+
+    if (!listmonkIntegration || !listmonkIntegration.customInstanceDetails) {
+      throw new Error('No Listmonk integration connected');
+    }
+
+    const details = JSON.parse(
+      AuthService.fixedDecryption(listmonkIntegration.customInstanceDetails)
+    );
+    const auth = Buffer.from(
+      `${details.username}:${details.password}`
+    ).toString('base64');
+
+    return { url: details.url as string, auth };
+  }
+
+  async getMailLists(orgId: string) {
+    const { url, auth } = await this.getListmonkDetails(orgId);
+    const response = await fetch(`${url}/api/lists?per_page=all`, {
+      headers: { Authorization: `Basic ${auth}` },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to load Listmonk lists');
+    }
+    const json: any = await response.json();
+    return (json?.data?.results || []).map((l: any) => ({
+      id: l.id,
+      name: l.name,
+      subscriberCount: l.subscriber_count,
+    }));
+  }
+
+  async getMailCampaign(orgId: string, campaignId: number) {
+    const { url, auth } = await this.getListmonkDetails(orgId);
+    const response = await fetch(`${url}/api/campaigns/${campaignId}`, {
+      headers: { Authorization: `Basic ${auth}` },
+    });
+    if (!response.ok) {
+      throw new Error('Campaign not found');
+    }
+    const c: any = (await response.json())?.data;
+    return {
+      id: c.id,
+      subject: c.subject,
+      body: c.body,
+      sendAt: c.send_at,
+      status: c.status,
+      listIds: (c.lists || []).map((l: any) => l.id),
+    };
+  }
+
+  async createMailCampaign(
+    orgId: string,
+    payload: {
+      subject: string;
+      body: string;
+      listIds: number[];
+      sendAt?: string;
+      sendNow?: boolean;
+    }
+  ) {
+    const { url, auth } = await this.getListmonkDetails(orgId);
+
+    const name = `${payload.subject} - ${dayjs().format(
+      'YYYY-MM-DD HH:mm:ss'
+    )}`;
+
+    const createRes = await fetch(`${url}/api/campaigns`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Basic ${auth}`,
+      },
+      body: JSON.stringify({
+        name,
+        subject: payload.subject,
+        lists: payload.listIds,
+        type: 'regular',
+        content_type: 'plain',
+        body: payload.body,
+        ...(payload.sendAt ? { send_at: payload.sendAt } : {}),
+      }),
+    });
+
+    if (!createRes.ok) {
+      const errText = await createRes.text();
+      throw new Error(`Failed to create mail campaign: ${errText}`);
+    }
+
+    const created: any = await createRes.json();
+    const campaignId = created?.data?.id;
+
+    if (payload.sendNow) {
+      await fetch(`${url}/api/campaigns/${campaignId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Authorization: `Basic ${auth}`,
+        },
+        body: JSON.stringify({ status: 'running' }),
+      });
+    } else if (payload.sendAt) {
+      await fetch(`${url}/api/campaigns/${campaignId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Authorization: `Basic ${auth}`,
+        },
+        body: JSON.stringify({ status: 'scheduled' }),
+      });
+    }
+    // otherwise: leave as 'draft', the default status on creation
+
+    return created?.data;
+  }
+
+  async updateMailCampaign(
+    orgId: string,
+    campaignId: number,
+    payload: {
+      subject?: string;
+      body?: string;
+      listIds?: number[];
+      sendAt?: string;
+    }
+  ) {
+    const { url, auth } = await this.getListmonkDetails(orgId);
+
+    const currentRes = await fetch(`${url}/api/campaigns/${campaignId}`, {
+      headers: { Authorization: `Basic ${auth}` },
+    });
+    if (!currentRes.ok) {
+      throw new Error('Campaign not found');
+    }
+    const current: any = (await currentRes.json())?.data;
+
+    const updateRes = await fetch(`${url}/api/campaigns/${campaignId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Basic ${auth}`,
+      },
+      body: JSON.stringify({
+        name: current.name,
+        subject: payload.subject ?? current.subject,
+        lists: payload.listIds ?? current.lists.map((l: any) => l.id),
+        type: current.type,
+        content_type: 'plain',
+        body: payload.body ?? current.body,
+        ...(payload.sendAt ? { send_at: payload.sendAt } : {}),
+      }),
+    });
+
+    if (!updateRes.ok) {
+      const errText = await updateRes.text();
+      throw new Error(`Failed to update mail campaign: ${errText}`);
+    }
+
+    return (await updateRes.json())?.data;
+  }
+
+  async changeMailCampaignStatus(
+    orgId: string,
+    campaignId: number,
+    newStatus: 'draft' | 'scheduled' | 'sent'
+  ) {
+    const { url, auth } = await this.getListmonkDetails(orgId);
+
+    // Map our simplified statuses to Listmonk's state machine.
+    // Listmonk only allows: draft<->scheduled, draft/paused->running.
+    // "sent" here means "send now", i.e. trigger 'running'.
+    const listmonkStatus =
+      newStatus === 'sent'
+        ? 'running'
+        : newStatus === 'scheduled'
+        ? 'scheduled'
+        : 'draft';
+
+    const response = await fetch(
+      `${url}/api/campaigns/${campaignId}/status`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Authorization: `Basic ${auth}`,
+        },
+        body: JSON.stringify({ status: listmonkStatus }),
+      }
+    );
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Failed to change mail campaign status: ${errText}`);
+    }
+
+    return (await response.json())?.data;
+  }
+
   async updateMedia(id: string, imagesList: any[], convertToJPEG = false) {
     try {
       let imageUpdateNeeded = false;

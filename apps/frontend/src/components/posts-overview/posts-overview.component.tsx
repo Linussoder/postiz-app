@@ -16,6 +16,7 @@ import { DatePicker } from '@gitroom/frontend/components/launches/helpers/date.p
 import { Button } from '@gitroom/react/form/button';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { newDayjs } from '@gitroom/frontend/components/layout/set.timezone';
+import { MailComposerModal } from '@gitroom/frontend/components/posts-overview/mail.composer.modal';
 
 dayjs.extend(utc);
 
@@ -216,6 +217,34 @@ export const PostsOverviewComponent = () => {
     setSelected([]);
     mutate();
   }, [selected, posts, mutate]);
+
+  const openMailComposer = useCallback(
+    (existingCampaign?: any) => () => {
+      modal.openModal({
+        title: '',
+        withCloseButton: false,
+        closeOnClickOutside: true,
+        classNames: { modal: 'bg-transparent' },
+        children: (
+          <MailComposerModal
+            existing={
+              existingCampaign
+                ? {
+                    id: existingCampaign.id,
+                    subject: existingCampaign.subject,
+                    sendAt: existingCampaign.sendAt,
+                    status: existingCampaign.status,
+                  }
+                : undefined
+            }
+            onClose={() => modal.closeAll()}
+            onSaved={() => mutate()}
+          />
+        ),
+      });
+    },
+    [mutate]
+  );
 
   const bulkReschedule = useCallback(() => {
     if (!selected.length) return;
@@ -453,22 +482,31 @@ export const PostsOverviewComponent = () => {
 
   const renderMailTab = () => (
     <div className="flex flex-col gap-[16px]">
-      <div className="flex gap-[10px]">
-        {MAIL_SEGMENTS.map((seg) => (
-          <button
-            key={seg.key}
-            type="button"
-            onClick={() => setMailSegment(seg.key)}
-            className={clsx(
-              'px-[14px] py-[8px] rounded-[6px] text-[14px]',
-              mailSegment === seg.key
-                ? 'bg-btnSimple text-btnText'
-                : 'bg-newBgColorInner'
-            )}
-          >
-            {seg.label}
-          </button>
-        ))}
+      <div className="flex items-center justify-between">
+        <div className="flex gap-[10px]">
+          {MAIL_SEGMENTS.map((seg) => (
+            <button
+              key={seg.key}
+              type="button"
+              onClick={() => setMailSegment(seg.key)}
+              className={clsx(
+                'px-[14px] py-[8px] rounded-[6px] text-[14px]',
+                mailSegment === seg.key
+                  ? 'bg-btnSimple text-btnText'
+                  : 'bg-newBgColorInner'
+              )}
+            >
+              {seg.label}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={openMailComposer()}
+          className="text-btnText bg-btnSimple h-[38px] px-[16px] rounded-[8px] text-[14px]"
+        >
+          {t('new_mail', '+ Nytt mail')}
+        </button>
       </div>
       <div className="flex flex-col gap-[8px]">
         {(!mail || !mail[mailSegment] || mail[mailSegment].length === 0) && (
@@ -479,7 +517,8 @@ export const PostsOverviewComponent = () => {
         {(mail?.[mailSegment] || []).map((campaign: any) => (
           <div
             key={campaign.id}
-            className="flex items-center gap-[12px] p-[12px] rounded-[8px] bg-newBgColorInner"
+            onClick={openMailComposer(campaign)}
+            className="flex items-center gap-[12px] p-[12px] rounded-[8px] bg-newBgColorInner cursor-pointer hover:opacity-80"
           >
             <div className="flex-1 flex flex-col">
               <div className="text-[14px]">{campaign.name}</div>
@@ -495,6 +534,7 @@ export const PostsOverviewComponent = () => {
       </div>
     </div>
   );
+
 
   return (
     <div className="flex flex-col gap-[16px] p-[20px]">

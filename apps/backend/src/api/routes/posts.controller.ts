@@ -111,6 +111,62 @@ export class PostsController {
     return this._postsService.getPostsOverview(org.id, query);
   }
 
+  @Get('/mail/lists')
+  async getMailLists(@GetOrgFromRequest() org: Organization) {
+    return this._postsService.getMailLists(org.id);
+  }
+
+  @Get('/mail/:id')
+  async getMailCampaign(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string
+  ) {
+    return this._postsService.getMailCampaign(org.id, +id);
+  }
+
+  @Post('/mail')
+  async createMailCampaign(
+    @GetOrgFromRequest() org: Organization,
+    @Body()
+    body: {
+      subject: string;
+      body: string;
+      listIds: number[];
+      sendAt?: string;
+      sendNow?: boolean;
+    }
+  ) {
+    return this._postsService.createMailCampaign(org.id, body);
+  }
+
+  @Put('/mail/:id')
+  async updateMailCampaign(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string,
+    @Body()
+    body: {
+      subject?: string;
+      body?: string;
+      listIds?: number[];
+      sendAt?: string;
+    }
+  ) {
+    return this._postsService.updateMailCampaign(org.id, +id, body);
+  }
+
+  @Put('/mail/:id/status')
+  async changeMailCampaignStatus(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string,
+    @Body() body: { status: 'draft' | 'scheduled' | 'sent' }
+  ) {
+    return this._postsService.changeMailCampaignStatus(
+      org.id,
+      +id,
+      body.status
+    );
+  }
+
   @Get('/find-slot')
   async findSlot(@GetOrgFromRequest() org: Organization) {
     return { date: await this._postsService.findFreeDateTime(org.id) };
