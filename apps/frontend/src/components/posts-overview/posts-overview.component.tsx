@@ -482,31 +482,22 @@ export const PostsOverviewComponent = () => {
 
   const renderMailTab = () => (
     <div className="flex flex-col gap-[16px]">
-      <div className="flex items-center justify-between">
-        <div className="flex gap-[10px]">
-          {MAIL_SEGMENTS.map((seg) => (
-            <button
-              key={seg.key}
-              type="button"
-              onClick={() => setMailSegment(seg.key)}
-              className={clsx(
-                'px-[14px] py-[8px] rounded-[6px] text-[14px]',
-                mailSegment === seg.key
-                  ? 'bg-btnSimple text-btnText'
-                  : 'bg-newBgColorInner'
-              )}
-            >
-              {seg.label}
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          onClick={openMailComposer()}
-          className="text-btnText bg-btnSimple h-[38px] px-[16px] rounded-[8px] text-[14px]"
-        >
-          {t('new_mail', '+ Nytt mail')}
-        </button>
+      <div className="flex gap-[10px]">
+        {MAIL_SEGMENTS.map((seg) => (
+          <button
+            key={seg.key}
+            type="button"
+            onClick={() => setMailSegment(seg.key)}
+            className={clsx(
+              'px-[14px] py-[8px] rounded-[6px] text-[14px]',
+              mailSegment === seg.key
+                ? 'bg-btnSimple text-btnText'
+                : 'bg-newBgColorInner'
+            )}
+          >
+            {seg.label}
+          </button>
+        ))}
       </div>
       <div className="flex flex-col gap-[8px]">
         {(!mail || !mail[mailSegment] || mail[mailSegment].length === 0) && (
@@ -541,7 +532,7 @@ export const PostsOverviewComponent = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-[24px] font-[600]">{t('posts', 'Posts')}</h1>
         <button
-          onClick={createNewPost}
+          onClick={tab === 'mail' ? openMailComposer() : createNewPost}
           className="text-btnText bg-btnSimple h-[44px] pt-[12px] pb-[14px] ps-[16px] pe-[20px] justify-center items-center flex rounded-[8px] gap-[8px]"
         >
           <div>
@@ -562,7 +553,9 @@ export const PostsOverviewComponent = () => {
             </svg>
           </div>
           <div className="text-start text-[16px]">
-            {t('create_post', 'Create post')}
+            {tab === 'mail'
+              ? t('create_mail', 'Create mail')
+              : t('create_post', 'Create post')}
           </div>
         </button>
       </div>
