@@ -160,12 +160,7 @@ export const PostsOverviewComponent = () => {
               allIntegrations={allIntegrations}
               reopenModal={() => ({})}
               mutate={mutate}
-              integrations={allIntegrations
-                .filter((f: any) => f.id === dataRes.integration)
-                .map((p: any) => ({
-                  ...p,
-                  picture: dataRes.integrationPicture,
-                }))}
+              integrations={allIntegrations}
               date={publishDate}
             />
           </ExistingDataContextProvider>
