@@ -98,10 +98,14 @@ export class InstagramProvider
     }
 
     // Media download/upload errors
+    // 2207003 = "Timeout downloading media" - transient network issue on
+    // Meta's side when fetching the image/video URL. Retrying (rather than
+    // failing immediately) fixes intermittent flakiness seen with large
+    // carousel posts (many images = many chances for one fetch to time out).
     if (body.indexOf('2207003') > -1) {
       return {
-        type: 'bad-body' as const,
-        value: 'Timeout downloading media, please try again',
+        type: 'retry' as const,
+        value: 'Timeout downloading media, retrying',
       };
     }
 
