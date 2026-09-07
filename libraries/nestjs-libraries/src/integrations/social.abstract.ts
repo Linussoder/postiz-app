@@ -91,7 +91,7 @@ export abstract class SocialAbstract {
       return request;
     }
 
-    if (totalRetries > 2) {
+    if (totalRetries > 5) {
       throw new BadBody(identifier, '{}', options.body || '{}');
     }
 
@@ -108,14 +108,14 @@ export abstract class SocialAbstract {
       json.includes('rate_limit_exceeded') ||
       json.includes('Rate limit')
     ) {
-      await timer(5000);
+      await timer(8000);
       return this.fetch(url, options, identifier, totalRetries + 1, ignoreConcurrency);
     }
 
     const handleError = this.handleErrors(json || '{}');
 
     if (handleError?.type === 'retry') {
-      await timer(5000);
+      await timer(8000);
       return this.fetch(url, options, identifier, totalRetries + 1, ignoreConcurrency);
     }
 
