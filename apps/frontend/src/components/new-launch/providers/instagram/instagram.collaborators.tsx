@@ -66,6 +66,9 @@ export default withProvider<InstagramDto>({
     if (firstPost.length > 1 && settings.post_type === 'story') {
       return 'Stories can only have one media';
     }
+    if (firstPost.length > 10) {
+      return 'Instagram tillåter max 10 bilder/videor per inlägg (carousel) via API. Ta bort några, eller posta manuellt i Instagram-appen.';
+    }
     const checkVideosLength = await Promise.all(
       firstPost
         .filter((f) => f.path.indexOf('mp4') > -1)
